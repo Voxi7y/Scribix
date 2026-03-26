@@ -1,1 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Scribix — AI Product Description Writer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Instrument+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
 
+  <!--
+  ╔══════════════════════════════════════════════════════════╗
+  ║              SCRIBIX — index.html                        ║
+  ║  Single file app. Paste your 3 keys in the KEYS section  ║
+  ║  below and upload this file to GitHub. That is it!       ║
+  ╚══════════════════════════════════════════════════════════╝
+
+  FEATURES INCLUDED:
+  - Login and Signup with Supabase Auth
+  - AI Description Generator (Groq / Llama3 70B)
+  - 3 unique descriptions per generation
+  - 5 tone modes: Professional, Fun, Luxury, Casual, Urgent
+  - 3 length options: Short, Medium, Long
+  - 6 platform optimisations: General, Amazon, Shopify, eBay, Etsy, Instagram
+  - Copy to clipboard on each result
+  - Save favourites to Supabase
+  - Export description as .txt file
+  - Regenerate individual versions
+  - SEO score indicator per description
+  - Full history with search and filters
+  - Delete descriptions
+  - Mark descriptions as Used
+  - Profile page with usage stats and progress bar
+  - Credit tracker (free tier limit)
+  - Character counter on features field
+  - Toast notifications
+  - Modal detail view
+  - Responsive mobile design
+  -->
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #080810;
+      --surf:   #0f0f1a;
+      --card:   #14141f;
+      --card2:  #1a1a28;
+      --bdr:    #232336;
+      --bdr2:   #2e2e48;
+      --ink:    #7c3aed;
+      --ink2:   #a78bfa;
+      --glow:   rgba(124,58,237,0.18);
+      --lime:   #a3e635;
+      --teal:   #2dd4bf;
+      --rose:   #fb7185;
+      --amber:  #fbbf24;
+      --txt:    #ede9fe;
+      --txt2:   #a8a4c0;
+      --muted:  #55536a;
+      --inp:    #0f0f1c;
+      --r:      12px;
+    }
+
+    body {
+      font-family: 'Instrument Sans', sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 55% 45% at 5% 0%, rgba(109,40,217,0.13) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 95% 100%, rgba(45,212,191,0.07) 0%, transparent 55%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .page { display:none; min-height:100vh; position:relative; z-index:1; }
+    .page.active { display:flex; }
+
+    /* ════ AUTH ════ */
+    #page-auth { align-items:center; justify-content:center; padding:24px; }
+
+    .auth-wrap { width:100%; max-width:430px; animation:riseIn 0.55s cubic-bezier(.16,1,.3,1) both; }
+
+    @keyframes riseIn {
+      from { opacity:0; transform:translateY(24px) scale(0.97); }
+      to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+
+    .auth-logo { text-align:center; margin-bottom:28px; }
+
+    .auth-mark {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:56px; height:56px;
+      background:linear-gradient(135deg,#7c3aed,#a78bfa);
+      border-radius:17px; font-size:26px;
+      box-shadow:0 0 36px rgba(124,58,237,0.38), inset 0 1px 0 rgba(255,255,255,0.14);
+      margin-bottom:13px;
+    }
+
+    .auth-logo h1 {
+      font-family:'Cabinet Grotesk',sans-serif;
+      font-size:32px; font-weight:900; letter-spacing:-1.2px;
+      background:linear-gradient(135deg,#ede9fe 30%,#a78bfa);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+
+    .auth-logo p { color:var(--txt2); font-size:13px; margin-top:5px; }
+
+    .auth-card {
+      background:var(--card);
+      border:1px solid var(--bdr2);
+      border-radius:20px;
+      padding:34px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .auth-tabs {
+      display:flex; background:var(--inp);
+      border-radius:10px; padding:4px; gap:4px; margin-bottom:24px;
+    }
+
+    .atab {
+      flex:1; padding:9px; border:none; background:transparent;
+      color:var(--muted);
+      font-family:'Cabinet Grotesk',sans-serif; font-size:14px; font-weight:700;
+      border-radius:8px; cursor:pointer; transition:all 0.2s;
+    }
+    .atab.active { background:var(--ink); color:#fff; box-shadow:0 2px 14px var(--glow); }
+
+    /* ════ FORM ELEMENTS ════ */
+    .fg { margin-bottom:15px; }
+
+    label {
+      display:block; font-size:11px; font-weight:500;
+      color:var(--muted); margin-bottom:6px;
+      text-transform:uppercase; letter-spacing:0.7px;
+    }
+
+    input, select, textarea {
+      width:100%; padding:11px 14px;
+      background:var(--inp); border:1px solid var(--bdr);
+      border-radius:10px; color:var(--txt);
+      font-family:'Instrument Sans',sans-serif; font-size:14px;
+      outline:none; resize:vertical;
+      transition:border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color:var(--ink);
+      box-shadow:0 0 0 3px var(--glow);
+    }
+
+    input::placeholder, textarea::placeholder { color:var(--muted); opacity:0.55; }
+    select option { background:#1a1a28; }
+
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:6px;
+      padding:11px 18px; border:none; border-radius:10px;
+      font-family:'Cabinet Grotesk',sans-serif; font-size:14px; font-weight:700;
+      cursor:pointer; transition:all 0.2s; white-space:nowrap;
+    }
+
+    .btn-full { width:100%; }
+
+    .btn-primary {
+      background:linear-gradient(135deg,#7c3aed,#9f67ff);
+      color:#fff; box-shadow:0 4px 20px var(--glow);
+    }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(124,58,237,0.4); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-primary:disabled { opacity:0.38; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    .btn-ghost {
+      background:transparent; border:1px solid var(--bdr2); color:var(--txt2);
+    }
+    .btn-ghost:hover { border-color:var(--ink); color:var(--txt); }
+
+    .btn-sm { padding:7px 13px; font-size:12px; border-radius:8px; }
+
+    .btn-icon {
+      width:33px; height:33px; padding:0;
+      background:var(--card2); border:1px solid var(--bdr);
+      border-radius:9px; font-size:14px; color:var(--txt2);
+    }
+    .btn-icon:hover { border-color:var(--ink); color:var(--txt); }
+
+    .msg {
+      padding:11px 14px; border-radius:9px;
+      font-size:13px; margin-bottom:14px; display:none; line-height:1.4;
+    }
+    .msg.error   { background:rgba(251,113,133,0.1);  border:1px solid rgba(251,113,133,0.25); color:var(--rose);  display:block; }
+    .msg.success { background:rgba(45,212,191,0.1);   border:1px solid rgba(45,212,191,0.25);  color:var(--teal);  display:block; }
+    .msg.info    { background:rgba(124,58,237,0.1);   border:1px solid rgba(124,58,237,0.25);  color:var(--ink2);  display:block; }
+
+    /* ════ APP LAYOUT ════ */
+    #page-app { flex-direction:column; }
+
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between;
+      height:58px; padding:0 24px;
+      background:rgba(8,8,16,0.88);
+      backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--bdr);
+      position:sticky; top:0; z-index:200;
+    }
+
+    .tbar-logo {
+      font-family:'Cabinet Grotesk',sans-serif;
+      font-size:20px; font-weight:900; letter-spacing:-0.8px;
+      display:flex; align-items:center; gap:9px;
+      background:linear-gradient(135deg,#ede9fe,#a78bfa);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+
+    .tbar-icon {
+      width:31px; height:31px;
+      background:linear-gradient(135deg,#7c3aed,#a78bfa);
+      border-radius:9px; display:flex; align-items:center; justify-content:center;
+      font-size:15px; -webkit-text-fill-color:initial;
+      box-shadow:0 0 16px var(--glow);
+    }
+
+    .tbar-right { display:flex; align-items:center; gap:10px; }
+
+    .cpill {
+      display:flex; align-items:center; gap:6px;
+      padding:5px 12px;
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:20px; font-size:12px; color:var(--txt2);
+    }
+    .cpill .n { color:var(--lime); font-weight:700; font-family:'Cabinet Grotesk',sans-serif; }
+
+    .av-btn {
+      width:33px; height:33px;
+      background:linear-gradient(135deg,var(--ink),#a78bfa);
+      border:none; border-radius:50%;
+      cursor:pointer; color:#fff;
+      font-family:'Cabinet Grotesk',sans-serif; font-size:13px; font-weight:800;
+      transition:transform 0.2s;
+    }
+    .av-btn:hover { transform:scale(1.08); }
+
+    .app-shell { display:flex; flex:1; min-height:calc(100vh - 58px); }
+
+    /* ════ SIDEBAR ════ */
+    .sidebar {
+      width:215px; flex-shrink:0;
+      background:var(--surf); border-right:1px solid var(--bdr);
+      padding:18px 10px;
+      display:flex; flex-direction:column; gap:3px;
+    }
+
+    .sb-lbl {
+      font-size:10px; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:1px;
+      padding:0 10px; margin:10px 0 4px;
+    }
+
+    .sb-btn {
+      display:flex; align-items:center; gap:10px;
+      padding:9px 12px; border-radius:9px;
+      border:none; background:transparent; color:var(--txt2);
+      font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:500;
+      cursor:pointer; transition:all 0.18s; text-align:left; width:100%;
+    }
+    .sb-btn:hover { background:var(--card); color:var(--txt); }
+    .sb-btn.active { background:rgba(124,58,237,0.14); color:#c4b5fd; border:1px solid rgba(124,58,237,0.2); }
+
+    .sb-icon { font-size:15px; width:20px; text-align:center; }
+
+    .sb-badge {
+      margin-left:auto;
+      background:var(--ink); color:#fff;
+      font-size:10px; font-weight:700;
+      padding:1px 7px; border-radius:10px;
+    }
+
+    .sb-bottom { margin-top:auto; }
+
+    /* ════ MAIN ════ */
+    .main { flex:1; padding:30px 32px; overflow-y:auto; max-width:860px; }
+
+    .section { display:none; animation:riseIn 0.3s cubic-bezier(.16,1,.3,1) both; }
+    .section.active { display:block; }
+
+    .sec-head { margin-bottom:26px; }
+    .sec-head h2 {
+      font-family:'Cabinet Grotesk',sans-serif;
+      font-size:25px; font-weight:900; letter-spacing:-0.7px; margin-bottom:4px;
+    }
+    .sec-head p { color:var(--txt2); font-size:13px; }
+
+    /* ════ GENERATE ════ */
+    .gen-card {
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:18px; padding:26px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.28);
+    }
+
+    .gen-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
+    .gen-grid .s2 { grid-column:1/-1; }
+
+    .chip-row { display:flex; gap:7px; flex-wrap:wrap; }
+
+    .chip {
+      display:flex; align-items:center; gap:5px;
+      padding:7px 13px;
+      background:var(--inp); border:1px solid var(--bdr);
+      border-radius:20px; color:var(--txt2);
+      font-size:13px; cursor:pointer; transition:all 0.18s;
+    }
+    .chip:hover { border-color:var(--bdr2); color:var(--txt); }
+    .chip.active { background:rgba(124,58,237,0.14); border-color:var(--ink); color:#c4b5fd; }
+    .chip.active-teal { background:rgba(45,212,191,0.1); border-color:var(--teal); color:var(--teal); }
+
+    .len-row { display:flex; gap:8px; }
+    .len-chip {
+      flex:1; padding:9px 6px; text-align:center;
+      background:var(--inp); border:1px solid var(--bdr);
+      border-radius:9px; color:var(--txt2);
+      font-size:12px; font-weight:500; cursor:pointer; transition:all 0.18s;
+    }
+    .len-chip.active { background:rgba(124,58,237,0.14); border-color:var(--ink); color:#c4b5fd; }
+
+    .char-c { font-size:11px; color:var(--muted); text-align:right; margin-top:4px; }
+    .char-c.warn { color:var(--amber); }
+    .char-c.over { color:var(--rose); }
+
+    .gen-actions { display:flex; gap:9px; margin-top:20px; align-items:center; }
+
+    /* ════ LOADING ════ */
+    .loading { display:none; text-align:center; padding:52px 0; }
+    .loading.active { display:block; }
+
+    .ldots { display:inline-flex; gap:6px; margin-bottom:14px; }
+    .ldots span {
+      width:10px; height:10px; border-radius:50%;
+      animation:bloop 1.2s ease infinite;
+    }
+    .ldots span:nth-child(1) { background:var(--ink); }
+    .ldots span:nth-child(2) { background:var(--ink2); animation-delay:0.2s; }
+    .ldots span:nth-child(3) { background:var(--teal); animation-delay:0.4s; }
+
+    @keyframes bloop {
+      0%,80%,100% { transform:scale(0.6); opacity:0.4; }
+      40%          { transform:scale(1.2); opacity:1; }
+    }
+
+    .loading p { color:var(--txt2); font-size:14px; }
+    .loading small { color:var(--muted); font-size:12px; margin-top:6px; display:block; }
+
+    /* ════ RESULT CARDS ════ */
+    .results { margin-top:26px; display:flex; flex-direction:column; gap:14px; }
+
+    .rcard {
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:16px; padding:22px;
+      animation:riseIn 0.4s cubic-bezier(.16,1,.3,1) both;
+      position:relative; overflow:hidden;
+    }
+
+    .rcard::before {
+      content:''; position:absolute; top:0; left:0;
+      width:3px; height:100%; border-radius:2px;
+    }
+    .rcard:nth-child(1)::before { background:linear-gradient(180deg,#7c3aed,#a78bfa); }
+    .rcard:nth-child(2)::before { background:linear-gradient(180deg,#2dd4bf,#34d399); animation-delay:0.08s; }
+    .rcard:nth-child(3)::before { background:linear-gradient(180deg,#fbbf24,#f97316); animation-delay:0.16s; }
+
+    .rcard-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:13px; }
+
+    .rlabel {
+      font-family:'Cabinet Grotesk',sans-serif;
+      font-size:11px; font-weight:800;
+      text-transform:uppercase; letter-spacing:0.6px;
+    }
+    .rcard:nth-child(1) .rlabel { color:#a78bfa; }
+    .rcard:nth-child(2) .rlabel { color:var(--teal); }
+    .rcard:nth-child(3) .rlabel { color:var(--amber); }
+
+    .rbtns { display:flex; gap:5px; }
+
+    .rbody { font-size:14px; line-height:1.76; color:#ccc8e8; padding-left:10px; }
+
+    .rfoot {
+      display:flex; align-items:center; gap:12px;
+      margin-top:12px; padding-top:12px; border-top:1px solid var(--bdr);
+      flex-wrap:wrap;
+    }
+
+    .rstat { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; }
+
+    .seo-bar { width:60px; height:4px; background:var(--bdr); border-radius:2px; overflow:hidden; }
+    .seo-fill { height:100%; border-radius:2px; transition:width 0.6s; }
+
+    /* ════ HISTORY ════ */
+    .htoolbar { display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+
+    .search-wrap { flex:1; min-width:180px; position:relative; }
+    .search-wrap input { padding-left:34px; }
+    .search-ico { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:13px; pointer-events:none; }
+
+    .fchips { display:flex; gap:6px; flex-wrap:wrap; }
+    .fchip {
+      padding:6px 13px;
+      background:var(--card); border:1px solid var(--bdr);
+      border-radius:20px; color:var(--txt2);
+      font-size:12px; cursor:pointer; transition:all 0.18s;
+    }
+    .fchip.active { background:var(--ink); border-color:var(--ink); color:#fff; }
+
+    .hgrid { display:flex; flex-direction:column; gap:9px; }
+
+    .hcard {
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:13px; padding:17px 19px;
+      cursor:pointer; transition:border-color 0.18s, transform 0.15s;
+      animation:riseIn 0.28s ease both;
+    }
+    .hcard:hover { border-color:var(--ink); transform:translateX(3px); }
+
+    .hcard-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:7px; }
+
+    .hcard-name { font-family:'Cabinet Grotesk',sans-serif; font-size:15px; font-weight:800; }
+
+    .htags { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+    .tag { padding:2px 9px; border-radius:20px; font-size:11px; font-weight:500; }
+    .tag-tone  { background:rgba(124,58,237,0.12); color:#a78bfa; }
+    .tag-saved { background:rgba(251,191,36,0.12);  color:var(--amber); }
+    .tag-used  { background:rgba(45,212,191,0.12);  color:var(--teal); }
+
+    .hcard-prev {
+      font-size:13px; color:var(--txt2); line-height:1.5;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+
+    .hcard-foot { display:flex; align-items:center; justify-content:space-between; margin-top:9px; }
+    .hcard-date { font-size:11px; color:var(--muted); }
+    .hcard-acts { display:flex; gap:5px; opacity:0; transition:opacity 0.18s; }
+    .hcard:hover .hcard-acts { opacity:1; }
+
+    .empty { text-align:center; padding:64px 0; color:var(--muted); }
+    .empty-ico { font-size:42px; margin-bottom:11px; opacity:0.45; }
+    .empty p { font-size:13px; }
+
+    /* ════ PROFILE ════ */
+    .pgrid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; }
+
+    .scard {
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:15px; padding:20px;
+    }
+
+    .slbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.7px; margin-bottom:7px; }
+
+    .sval {
+      font-family:'Cabinet Grotesk',sans-serif; font-size:34px; font-weight:900; letter-spacing:-1px;
+      background:linear-gradient(135deg,var(--txt),var(--ink2));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+
+    .ssub { font-size:12px; color:var(--txt2); margin-top:3px; }
+
+    .pbar { height:5px; background:var(--bdr); border-radius:3px; overflow:hidden; margin-top:11px; }
+    .pfill { height:100%; background:linear-gradient(90deg,var(--ink),var(--teal)); border-radius:3px; transition:width 0.8s; }
+
+    .pform-card {
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:15px; padding:22px; margin-bottom:14px;
+    }
+    .pform-card h3 { font-family:'Cabinet Grotesk',sans-serif; font-size:16px; font-weight:800; margin-bottom:16px; }
+
+    /* ════ MODAL ════ */
+    .overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.72); backdrop-filter:blur(7px);
+      z-index:500; align-items:center; justify-content:center; padding:24px;
+    }
+    .overlay.active { display:flex; }
+
+    .modal {
+      background:var(--card); border:1px solid var(--bdr2);
+      border-radius:20px; padding:28px;
+      width:100%; max-width:560px;
+      max-height:80vh; overflow-y:auto;
+      animation:riseIn 0.3s cubic-bezier(.16,1,.3,1) both;
+      box-shadow:0 32px 80px rgba(0,0,0,0.65);
+    }
+
+    .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .modal-head h3 { font-family:'Cabinet Grotesk',sans-serif; font-size:18px; font-weight:800; }
+    .modal-body { font-size:14px; line-height:1.8; color:#ccc8e8; }
+    .modal-foot { display:flex; gap:7px; margin-top:18px; padding-top:16px; border-top:1px solid var(--bdr); flex-wrap:wrap; }
+
+    /* ════ TOASTS ════ */
+    .toast-wrap { position:fixed; bottom:22px; right:22px; display:flex; flex-direction:column; gap:7px; z-index:9000; }
+
+    .toast {
+      display:flex; align-items:center; gap:9px;
+      padding:11px 17px;
+      background:var(--card2); border:1px solid var(--bdr2);
+      border-radius:11px; font-size:13px; color:var(--txt);
+      box-shadow:0 8px 24px rgba(0,0,0,0.5);
+      animation:toastIn 0.3s cubic-bezier(.16,1,.3,1) both;
+      min-width:200px;
+    }
+
+    @keyframes toastIn  { from { opacity:0; transform:translateX(22px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes toastOut { to   { opacity:0; transform:translateX(22px); } }
+
+    @media (max-width:680px) {
+      .sidebar { display:none; }
+      .main { padding:18px 14px; }
+      .gen-grid { grid-template-columns:1fr; }
+      .pgrid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="closeOverlay(event)">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <h3 id="m-title">Description</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeOverlayDirect()">✕ Close</button>
+    </div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-foot" id="m-foot"></div>
+  </div>
+</div>
+
+
+<!-- ══════════════ PAGE 1 — AUTH ══════════════ -->
+<div id="page-auth" class="page active">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <div class="auth-mark">✍️</div>
+      <h1>Scribix</h1>
+      <p>AI-powered descriptions that sell</p>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="atab active" onclick="switchTab('login',this)">Login</button>
+        <button class="atab" onclick="switchTab('signup',this)">Sign Up</button>
+      </div>
+
+      <div id="auth-msg" class="msg"></div>
+
+      <div id="form-login">
+        <div class="fg">
+          <label>Email</label>
+          <input type="email" id="l-email" placeholder="you@example.com"/>
+        </div>
+        <div class="fg">
+          <label>Password</label>
+          <input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doLogin()" id="btn-login">Login to Scribix</button>
+      </div>
+
+      <div id="form-signup" style="display:none">
+        <div class="fg">
+          <label>Full Name</label>
+          <input type="text" id="s-name" placeholder="Your name"/>
+        </div>
+        <div class="fg">
+          <label>Email</label>
+          <input type="email" id="s-email" placeholder="you@example.com"/>
+        </div>
+        <div class="fg">
+          <label>Password</label>
+          <input type="password" id="s-pass" placeholder="Min 6 characters"/>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doSignup()" id="btn-signup">Create Free Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════ PAGE 2 — APP ══════════════ -->
+<div id="page-app" class="page">
+
+  <div class="topbar">
+    <div class="tbar-logo">
+      <div class="tbar-icon">✍️</div>
+      Scribix
+    </div>
+    <div class="tbar-right">
+      <div class="cpill">⚡ <span class="n" id="cred-num">0</span> credits left</div>
+      <button class="av-btn" id="av-btn" onclick="goSection('profile')">S</button>
+    </div>
+  </div>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sb-lbl">Menu</div>
+      <button class="sb-btn active" id="sb-generate" onclick="goSection('generate',this)">
+        <span class="sb-icon">✨</span> Generate
+      </button>
+      <button class="sb-btn" id="sb-history" onclick="goSection('history',this)">
+        <span class="sb-icon">📋</span> History
+        <span class="sb-badge" id="hcount">0</span>
+      </button>
+      <button class="sb-btn" id="sb-saved" onclick="goSection('saved',this)">
+        <span class="sb-icon">⭐</span> Saved
+      </button>
+      <button class="sb-btn" id="sb-profile" onclick="goSection('profile',this)">
+        <span class="sb-icon">👤</span> Profile
+      </button>
+      <div class="sb-bottom">
+        <button class="sb-btn" onclick="doSignout()">
+          <span class="sb-icon">🚪</span> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <!-- ── GENERATE ── -->
+      <div id="section-generate" class="section active">
+        <div class="sec-head">
+          <h2>✨ Generate Descriptions</h2>
+          <p>Fill in your product details — Scribix writes 3 unique versions instantly.</p>
+        </div>
+
+        <div class="gen-card">
+          <div class="gen-grid">
+
+            <div class="fg">
+              <label>Product Name *</label>
+              <input type="text" id="g-name" placeholder="e.g. Wireless Headphones" maxlength="100"/>
+            </div>
+
+            <div class="fg">
+              <label>Category</label>
+              <select id="g-cat">
+                <option value="">Select category...</option>
+                <option>Electronics</option>
+                <option>Fashion &amp; Clothing</option>
+                <option>Home &amp; Garden</option>
+                <option>Beauty &amp; Health</option>
+                <option>Sports &amp; Fitness</option>
+                <option>Food &amp; Drink</option>
+                <option>Toys &amp; Games</option>
+                <option>Books &amp; Education</option>
+                <option>Jewellery &amp; Accessories</option>
+                <option>Software &amp; Apps</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            <div class="fg s2">
+              <label>Key Features * <span style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0">(separate with commas)</span></label>
+              <textarea id="g-feat" rows="3" placeholder="e.g. noise cancelling, 30hr battery, foldable, Bluetooth 5.0, carry case included" oninput="charCount(this,'fc',400)"></textarea>
+              <div class="char-c" id="fc">0 / 400</div>
+            </div>
+
+            <div class="fg">
+              <label>Target Audience</label>
+              <input type="text" id="g-aud" placeholder="e.g. commuters, students, gamers"/>
+            </div>
+
+            <div class="fg">
+              <label>Price</label>
+              <input type="text" id="g-price" placeholder="e.g. £29.99"/>
+            </div>
+
+            <div class="fg">
+              <label>Brand <span style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0">(optional)</span></label>
+              <input type="text" id="g-brand" placeholder="e.g. SoundMax"/>
+            </div>
+
+            <div class="fg">
+              <label>Unique Selling Point</label>
+              <input type="text" id="g-usp" placeholder="e.g. only waterproof option under £30"/>
+            </div>
+
+            <div class="fg s2">
+              <label>Tone</label>
+              <div class="chip-row">
+                <button class="chip active" data-tone="professional" onclick="pickChip(this,'tone')">💼 Professional</button>
+                <button class="chip" data-tone="fun" onclick="pickChip(this,'tone')">🎉 Fun &amp; Energetic</button>
+                <button class="chip" data-tone="luxury" onclick="pickChip(this,'tone')">✨ Luxury</button>
+                <button class="chip" data-tone="casual" onclick="pickChip(this,'tone')">😊 Casual</button>
+                <button class="chip" data-tone="urgent" onclick="pickChip(this,'tone')">🔥 Urgent / FOMO</button>
+              </div>
+            </div>
+
+            <div class="fg s2">
+              <label>Description Length</label>
+              <div class="len-row">
+                <button class="len-chip active" data-len="short" onclick="pickChip(this,'len')">Short<br><small style="color:var(--muted)">40–60 words</small></button>
+                <button class="len-chip" data-len="medium" onclick="pickChip(this,'len')">Medium<br><small style="color:var(--muted)">80–100 words</small></button>
+                <button class="len-chip" data-len="long" onclick="pickChip(this,'len')">Long<br><small style="color:var(--muted)">150–200 words</small></button>
+              </div>
+            </div>
+
+            <div class="fg s2">
+              <label>Optimise For Platform</label>
+              <div class="chip-row">
+                <button class="chip active" data-plat="general" onclick="pickChip(this,'plat')">🌐 General</button>
+                <button class="chip" data-plat="amazon" onclick="pickChip(this,'plat')">📦 Amazon</button>
+                <button class="chip" data-plat="shopify" onclick="pickChip(this,'plat')">🛍️ Shopify</button>
+                <button class="chip" data-plat="ebay" onclick="pickChip(this,'plat')">🏷️ eBay</button>
+                <button class="chip" data-plat="etsy" onclick="pickChip(this,'plat')">🎨 Etsy</button>
+                <button class="chip" data-plat="instagram" onclick="pickChip(this,'plat')">📸 Instagram</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div id="gen-msg" class="msg"></div>
+
+          <div class="gen-actions">
+            <button class="btn btn-primary" style="flex:1" onclick="doGenerate()" id="btn-gen">✍️ Generate 3 Descriptions</button>
+            <button class="btn btn-ghost btn-icon" onclick="clearForm()" title="Clear form" style="width:42px;height:42px">🗑️</button>
+          </div>
+        </div>
+
+        <div class="loading" id="loading">
+          <div class="ldots"><span></span><span></span><span></span></div>
+          <p>Scribix is writing your descriptions...</p>
+          <small>Usually takes 2–5 seconds</small>
+        </div>
+
+        <div class="results" id="results"></div>
+      </div>
+
+
+      <!-- ── HISTORY ── -->
+      <div id="section-history" class="section">
+        <div class="sec-head">
+          <h2>📋 All Descriptions</h2>
+          <p>Every description you have generated.</p>
+        </div>
+        <div class="htoolbar">
+          <div class="search-wrap">
+            <span class="search-ico">🔍</span>
+            <input type="text" id="hsearch" placeholder="Search by product name..." oninput="renderHistory()"/>
+          </div>
+          <div class="fchips">
+            <button class="fchip active" data-f="all" onclick="setFilter(this)">All</button>
+            <button class="fchip" data-f="saved" onclick="setFilter(this)">⭐ Saved</button>
+            <button class="fchip" data-f="used" onclick="setFilter(this)">✅ Used</button>
+          </div>
+        </div>
+        <div class="hgrid" id="hgrid"></div>
+      </div>
+
+
+      <!-- ── SAVED ── -->
+      <div id="section-saved" class="section">
+        <div class="sec-head">
+          <h2>⭐ Saved Descriptions</h2>
+          <p>Your starred favourites.</p>
+        </div>
+        <div class="hgrid" id="sgrid"></div>
+      </div>
+
+
+      <!-- ── PROFILE ── -->
+      <div id="section-profile" class="section">
+        <div class="sec-head">
+          <h2>👤 Your Profile</h2>
+          <p>Account details and usage stats.</p>
+        </div>
+
+        <div class="pgrid">
+          <div class="scard">
+            <div class="slbl">Total Generated</div>
+            <div class="sval" id="st-gen">0</div>
+            <div class="ssub">descriptions all time</div>
+          </div>
+          <div class="scard">
+            <div class="slbl">Credits Remaining</div>
+            <div class="sval" id="st-cred">0</div>
+            <div class="ssub">Free plan: 10/month</div>
+            <div class="pbar"><div class="pfill" id="pbar-fill" style="width:0%"></div></div>
+          </div>
+          <div class="scard">
+            <div class="slbl">Saved Favourites</div>
+            <div class="sval" id="st-saved">0</div>
+            <div class="ssub">⭐ starred descriptions</div>
+          </div>
+          <div class="scard">
+            <div class="slbl">Member Since</div>
+            <div class="sval" style="font-size:20px" id="st-since">—</div>
+            <div class="ssub" id="st-plan">Free Plan</div>
+          </div>
+        </div>
+
+        <div class="pform-card">
+          <h3>Account Details</h3>
+          <div class="fg">
+            <label>Full Name</label>
+            <input type="text" id="p-name" placeholder="Your name"/>
+          </div>
+          <div class="fg">
+            <label>Email</label>
+            <input type="email" id="p-email" disabled style="opacity:0.45"/>
+          </div>
+          <div id="prof-msg" class="msg"></div>
+          <button class="btn btn-primary btn-sm" onclick="saveProfile()">Save Changes</button>
+        </div>
+
+        <div class="pform-card">
+          <h3>Danger Zone</h3>
+          <button class="btn btn-ghost btn-sm" onclick="doSignout()" style="border-color:var(--rose);color:var(--rose)">🚪 Sign Out</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ╔══════════════════════════════════════════════════════════╗
+// ║                  🔑  YOUR KEYS                           ║
+// ╠══════════════════════════════════════════════════════════╣
+// ║                                                          ║
+// ║  SUPABASE_URL                                            ║
+// ║  supabase.com → your project → Settings → API           ║
+// ║  → Project URL                                           ║
+// ║                                                          ║
+// ║  SUPABASE_ANON_KEY                                       ║
+// ║  supabase.com → your project → Settings → API           ║
+// ║  → anon / public key                                     ║
+// ║                                                          ║
+// ║  GROQ_API_KEY                                            ║
+// ║  console.groq.com → API Keys → Create API Key           ║
+// ║  (100% free, no credit card needed)                      ║
+// ║                                                          ║
+// ╚══════════════════════════════════════════════════════════╝
+
+const SUPABASE_URL      = 'https://ueuucoarnsemvplwztku.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVldXVjb2FybnNlbXZwbHd6dGt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MzY3NTAsImV4cCI6MjA5MDExMjc1MH0.gGq11TkV4wz71pe9ZjNvMcm-HeW1rPwtdiv9pypEPQ8';
+const GROQ_API_KEY      = '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';
+
+// ════════════════════════════════════════════════════════════
+//  DO NOT EDIT BELOW THIS LINE
+// ════════════════════════════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let user    = null;
+let profile = null;
+let history = [];
+let hFilter = 'all';
+let tone    = 'professional';
+let len     = 'short';
+let plat    = 'general';
+
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) { user = session.user; await syncProfile(); enterApp(); }
+});
+
+
+// ════ AUTH ════
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.atab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('form-login').style.display  = tab === 'login'  ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = tab === 'signup' ? 'block' : 'none';
+  clearMsg('auth-msg');
+}
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  if (!email || !pass) return showMsg('auth-msg', 'Please fill in all fields.', 'error');
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Logging in...';
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+  if (error) { showMsg('auth-msg', error.message, 'error'); btn.disabled = false; btn.textContent = 'Login to Scribix'; }
+  else { user = data.user; await syncProfile(); enterApp(); }
+}
+
+async function doSignup() {
+  const name  = document.getElementById('s-name').value.trim();
+  const email = document.getElementById('s-email').value.trim();
+  const pass  = document.getElementById('s-pass').value;
+  if (!name || !email || !pass) return showMsg('auth-msg', 'Please fill in all fields.', 'error');
+  if (pass.length < 6) return showMsg('auth-msg', 'Password must be at least 6 characters.', 'error');
+  const btn = document.getElementById('btn-signup');
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  const { data, error } = await db.auth.signUp({ email, password: pass });
+  if (error) { showMsg('auth-msg', error.message, 'error'); btn.disabled = false; btn.textContent = 'Create Free Account'; return; }
+  if (data.user) await db.from('profiles').update({ full_name: name }).eq('id', data.user.id);
+  if (data.session) { user = data.user; await syncProfile(); enterApp(); }
+  else { showMsg('auth-msg', '✅ Account created! Check your email to confirm, then log in.', 'success'); btn.disabled = false; btn.textContent = 'Create Free Account'; }
+}
+
+async function doSignout() {
+  await db.auth.signOut();
+  user = null; profile = null; history = [];
+  document.getElementById('page-app').classList.remove('active');
+  document.getElementById('page-auth').classList.add('active');
+  toast('👋 Signed out');
+}
+
+
+// ════ PROFILE ════
+
+async function syncProfile() {
+  const { data } = await db.from('profiles').select('*').eq('id', user.id).single();
+  profile = data;
+  if (!data) return;
+  const rem = Math.max(0, data.credits_limit - data.credits_used);
+  document.getElementById('cred-num').textContent = rem;
+  const ini = (data.full_name || data.email || 'U').charAt(0).toUpperCase();
+  document.getElementById('av-btn').textContent = ini;
+  document.getElementById('st-gen').textContent   = data.credits_used || 0;
+  document.getElementById('st-cred').textContent  = rem;
+  document.getElementById('st-saved').textContent = history.filter(h => h.is_saved).length;
+  document.getElementById('st-since').textContent = new Date(data.created_at).toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+  document.getElementById('st-plan').textContent  = data.plan === 'pro' ? '⚡ Pro Plan' : '🆓 Free Plan';
+  document.getElementById('pbar-fill').style.width = Math.min(100,(data.credits_used/data.credits_limit)*100) + '%';
+  document.getElementById('p-name').value  = data.full_name || '';
+  document.getElementById('p-email').value = data.email || user.email || '';
+}
+
+async function saveProfile() {
+  const name = document.getElementById('p-name').value.trim();
+  if (!name) return showMsg('prof-msg','Name cannot be empty.','error');
+  await db.from('profiles').update({ full_name: name }).eq('id', user.id);
+  await syncProfile();
+  showMsg('prof-msg','✅ Profile saved!','success');
+  setTimeout(() => clearMsg('prof-msg'), 3000);
+}
+
+
+// ════ NAVIGATION ════
+
+function enterApp() {
+  document.getElementById('page-auth').classList.remove('active');
+  document.getElementById('page-app').classList.add('active');
+  loadHistory();
+}
+
+function goSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.querySelectorAll('.sb-btn').forEach(b => b.classList.remove('active'));
+  const sbBtn = btn || document.getElementById('sb-' + name);
+  if (sbBtn) sbBtn.classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name === 'saved')   renderSaved();
+  if (name === 'profile') syncProfile();
+}
+
+
+// ════ CHIP SELECTORS ════
+
+function pickChip(el, group) {
+  const selClass = group === 'plat' ? 'active' : 'active';
+  el.parentElement.querySelectorAll('[data-' + group + ']').forEach(c => c.classList.remove('active'));
+  el.classList.add(selClass);
+  if (group === 'tone') tone = el.dataset.tone;
+  if (group === 'len')  len  = el.dataset.len;
+  if (group === 'plat') plat = el.dataset.plat;
+}
+
+
+// ════ GENERATE ════
+
+async function doGenerate() {
+  const name  = document.getElementById('g-name').value.trim();
+  const feat  = document.getElementById('g-feat').value.trim();
+  const aud   = document.getElementById('g-aud').value.trim();
+  const cat   = document.getElementById('g-cat').value;
+  const price = document.getElementById('g-price').value.trim();
+  const brand = document.getElementById('g-brand').value.trim();
+  const usp   = document.getElementById('g-usp').value.trim();
+
+  if (!name) return showMsg('gen-msg','⚠️ Please enter a product name.','error');
+  if (!feat) return showMsg('gen-msg','⚠️ Please enter at least one key feature.','error');
+
+  if (profile && profile.credits_used >= profile.credits_limit)
+    return showMsg('gen-msg','❌ You have used all your free credits. Upgrade to Pro for unlimited access.','error');
+
+  clearMsg('gen-msg');
+  document.getElementById('btn-gen').disabled = true;
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('results').innerHTML = '';
+
+  const lenMap  = { short:'40-60 words', medium:'80-100 words', long:'150-200 words' };
+  const platTip = {
+    amazon:    'Keyword-rich, spec-focused, bullet-point language style.',
+    shopify:   'Lifestyle-oriented, brand trust, conversational tone.',
+    ebay:      'Clear and factual, mention condition and compatibility.',
+    etsy:      'Warm, handcrafted feel, emphasise uniqueness and story.',
+    instagram: 'Short, punchy, emoji-friendly, ends with a call to action.',
+    general:   'Balanced and versatile for any platform.'
+  };
+
+  const prompt = `You are an expert e-commerce copywriter. Write exactly 3 different product descriptions.
+
+PRODUCT:
+- Name: ${name}
+- Category: ${cat || 'General'}
+- Key Features: ${feat}
+- Target Audience: ${aud || 'General consumers'}
+- Price: ${price || 'Not specified'}
+- Brand: ${brand || 'Not specified'}
+- USP: ${usp || 'Not specified'}
+- Tone: ${tone}
+- Length: ${lenMap[len]} each
+- Platform: ${plat} — ${platTip[plat]}
+
+RULES:
+1. Each description must use a completely different angle or opening hook
+2. Tone must match: ${tone}
+3. Each must be ${lenMap[len]}
+4. Make them persuasive and optimised for online selling
+5. Separate each with exactly: ---NEXT---
+6. Output ONLY the 3 descriptions with separators. No labels, no numbering, no preamble.`;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({ model:'llama3-70b-8192', max_tokens:1400, temperature:0.88, messages:[{role:'user',content:prompt}] })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'Groq error');
+
+    const raw   = data.choices[0].message.content;
+    const descs = raw.split('---NEXT---').map(d => d.trim()).filter(Boolean).slice(0,3);
+
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('btn-gen').disabled = false;
+
+    // Save product
+    const { data: prod } = await db.from('products').insert({
+      user_id: user.id, product_name: name, key_features: feat,
+      target_audience: aud, tone, category: cat, price_range: price
+    }).select().single();
+
+    // Render cards
+    const wrap  = document.getElementById('results');
+    const labs  = ['Version A','Version B','Version C'];
+
+    descs.forEach((desc, i) => {
+      const wc  = desc.split(/\s+/).filter(Boolean).length;
+      const seo = Math.min(100, Math.round((wc / 100) * 100));
+      const seoCol = seo >= 70 ? '#a3e635' : seo >= 40 ? '#fbbf24' : '#fb7185';
+      const esc = escJ(desc);
+      const escName = escJ(name);
+
+      const card = document.createElement('div');
+      card.className = 'rcard';
+      card.innerHTML = `
+        <div class="rcard-top">
+          <span class="rlabel">${labs[i]}</span>
+          <div class="rbtns">
+            <button class="btn btn-icon" title="Copy" onclick="copyBtn(this,\`${esc}\`)">📋</button>
+            <button class="btn btn-icon" title="Save to favourites" onclick="starBtn(this,\`${esc}\`,'${prod?.id||''}',\`${escName}\`)">⭐</button>
+            <button class="btn btn-icon" title="Export .txt" onclick="exportTxt(\`${esc}\`,\`${escName}\`)">💾</button>
+            <button class="btn btn-icon" title="Regenerate this version" onclick="regenOne(this,${i},\`${escName}\`,\`${escJ(feat)}\`)">🔄</button>
+          </div>
+        </div>
+        <p class="rbody" id="rb-${i}">${desc}</p>
+        <div class="rfoot">
+          <span class="rstat">📝 ${wc} words</span>
+          <span class="rstat">🎭 ${tone}</span>
+          <span class="rstat">📦 ${plat}</span>
+          <span style="flex:1"></span>
+          <span class="rstat" style="gap:6px">
+            SEO
+            <div class="seo-bar"><div class="seo-fill" style="width:${seo}%;background:${seoCol}"></div></div>
+            <span style="color:${seoCol}">${seo}%</span>
+          </span>
+        </div>`;
+      wrap.appendChild(card);
+    });
+
+    // Save all 3 to Supabase
+    for (const desc of descs) {
+      await db.from('descriptions').insert({
+        user_id: user.id, product_id: prod?.id || null,
+        product_name: name, generated_text: desc, tone, is_saved: false
+      });
+    }
+
+    await loadHistory();
+    await syncProfile();
+    toast('✅ 3 descriptions generated!');
+
+  } catch(err) {
+    document.getElementById('loading').classList.remove('active');
+    document.getElementById('btn-gen').disabled = false;
+    showMsg('gen-msg','❌ Error: ' + (err.message || 'Check your Groq API key.'),'error');
+    console.error(err);
+  }
+}
+
+async function regenOne(btn, idx, name, feat) {
+  btn.textContent = '⏳'; btn.disabled = true;
+  const prompt = `Write ONE compelling product description for: ${name}. Features: ${feat}. Tone: ${tone}. Length: ${len === 'short' ? '40-60' : len === 'medium' ? '80-100' : '150-200'} words. Output ONLY the description, no labels.`;
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_API_KEY}`},
+      body: JSON.stringify({model:'llama3-70b-8192',max_tokens:400,messages:[{role:'user',content:prompt}]})
+    });
+    const data = await res.json();
+    document.getElementById('rb-'+idx).textContent = data.choices[0].message.content.trim();
+    btn.textContent = '✅'; setTimeout(()=>{ btn.textContent='🔄'; btn.disabled=false; },1500);
+    toast('🔄 Version regenerated!');
+  } catch(e) {
+    btn.textContent='🔄'; btn.disabled=false;
+    toast('❌ Regen failed','error');
+  }
+}
+
+function clearForm() {
+  ['g-name','g-feat','g-aud','g-price','g-brand','g-usp'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('g-cat').value = '';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('fc').textContent = '0 / 400';
+  clearMsg('gen-msg');
+  toast('🗑️ Form cleared');
+}
+
+
+// ════ HISTORY ════
+
+async function loadHistory() {
+  const { data } = await db.from('descriptions').select('*').eq('user_id', user.id).order('created_at',{ascending:false});
+  history = data || [];
+  document.getElementById('hcount').textContent = history.length;
+}
+
+function renderHistory() {
+  const q = (document.getElementById('hsearch')?.value || '').toLowerCase();
+  let items = history;
+  if (hFilter === 'saved') items = items.filter(i => i.is_saved);
+  if (hFilter === 'used')  items = items.filter(i => i.is_used);
+  if (q) items = items.filter(i => i.product_name.toLowerCase().includes(q));
+  renderCards(items, 'hgrid');
+}
+
+function renderSaved() { renderCards(history.filter(i => i.is_saved), 'sgrid'); }
+
+function renderCards(items, gid) {
+  const el = document.getElementById(gid);
+  if (!items.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📭</div><p>Nothing here yet.</p></div>`;
+    return;
+  }
+  el.innerHTML = items.map((item, idx) => `
+    <div class="hcard" style="animation-delay:${idx*0.035}s" onclick="openModal('${item.id}')">
+      <div class="hcard-top">
+        <span class="hcard-name">${item.product_name}</span>
+        <div class="htags">
+          <span class="tag tag-tone">${item.tone}</span>
+          ${item.is_saved ? '<span class="tag tag-saved">⭐</span>' : ''}
+          ${item.is_used  ? '<span class="tag tag-used">✅</span>'  : ''}
+        </div>
+      </div>
+      <p class="hcard-prev">${item.generated_text}</p>
+      <div class="hcard-foot">
+        <span class="hcard-date">${fmtDate(item.created_at)}</span>
+        <div class="hcard-acts">
+          <button class="btn btn-icon btn-sm" title="Copy" onclick="event.stopPropagation();copyText('${escJ(item.generated_text)}')">📋</button>
+          <button class="btn btn-icon btn-sm" title="Delete" onclick="event.stopPropagation();delDesc('${item.id}')">🗑️</button>
+        </div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function setFilter(btn) {
+  document.querySelectorAll('.fchip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  hFilter = btn.dataset.f;
+  renderHistory();
+}
+
+
+// ════ DESCRIPTION ACTIONS ════
+
+function copyBtn(btn, text) {
+  navigator.clipboard.writeText(text).then(() => { btn.textContent='✅'; setTimeout(()=>btn.textContent='📋',2000); toast('📋 Copied!'); });
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('📋 Copied!'));
+}
+
+async function starBtn(btn, text, prodId, prodName) {
+  btn.textContent = '💜';
+  await db.from('descriptions').insert({ user_id:user.id, product_id:prodId||null, product_name:prodName, generated_text:text, tone, is_saved:true });
+  await loadHistory();
+  toast('⭐ Saved to favourites!');
+  setTimeout(()=>btn.textContent='⭐',2000);
+}
+
+function exportTxt(text, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text],{type:'text/plain'}));
+  a.download = (name||'description').replace(/\s+/g,'-').toLowerCase()+'.txt';
+  a.click(); toast('💾 Exported as .txt!');
+}
+
+async function delDesc(id) {
+  if (!confirm('Delete this description?')) return;
+  await db.from('descriptions').delete().eq('id', id);
+  await loadHistory(); renderHistory();
+  toast('🗑️ Deleted');
+}
+
+async function toggleSaved(id, cur) {
+  await db.from('descriptions').update({ is_saved: !cur }).eq('id', id);
+  await loadHistory(); renderHistory();
+  toast(cur ? 'Removed from saved' : '⭐ Saved!');
+}
+
+async function toggleUsed(id, cur) {
+  await db.from('descriptions').update({ is_used: !cur }).eq('id', id);
+  await loadHistory(); renderHistory();
+  toast(cur ? 'Unmarked' : '✅ Marked as used!');
+}
+
+
+// ════ MODAL ════
+
+function openModal(id) {
+  const item = history.find(h => h.id === id);
+  if (!item) return;
+  document.getElementById('m-title').textContent = item.product_name;
+  document.getElementById('m-body').textContent  = item.generated_text;
+  document.getElementById('m-foot').innerHTML = `
+    <button class="btn btn-primary btn-sm" onclick="copyText('${escJ(item.generated_text)}')">📋 Copy</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportTxt('${escJ(item.generated_text)}','${escJ(item.product_name)}')">💾 Export</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleSaved('${item.id}',${item.is_saved})">${item.is_saved?'💔 Unsave':'⭐ Save'}</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleUsed('${item.id}',${item.is_used})">${item.is_used?'↩️ Unmark':'✅ Mark Used'}</button>
+  `;
+  document.getElementById('overlay').classList.add('active');
+}
+
+function closeOverlay(e) { if (e.target === document.getElementById('overlay')) closeOverlayDirect(); }
+function closeOverlayDirect() { document.getElementById('overlay').classList.remove('active'); }
+
+
+// ════ TOASTS ════
+
+function toast(msg, type='success') {
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  if (type === 'error') el.style.borderColor = 'rgba(251,113,133,0.35)';
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => el.remove(), 300); }, 2800);
+}
+
+
+// ════ HELPERS ════
+
+function showMsg(id, txt, type) { const e = document.getElementById(id); if(e){e.textContent=txt; e.className='msg '+type;} }
+function clearMsg(id) { const e = document.getElementById(id); if(e){e.className='msg'; e.textContent='';} }
+
+function charCount(el, cid, max) {
+  const n = el.value.length;
+  const c = document.getElementById(cid);
+  c.textContent = n + ' / ' + max;
+  c.className = 'char-c' + (n > max ? ' over' : n > max * 0.8 ? ' warn' : '');
+}
+
+function fmtDate(s) {
+  return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function escJ(s) {
+  return (s||'').replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$').replace(/'/g,"\\'");
+}
+</script>
+
+</body>
+</html>
